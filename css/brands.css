@@ -631,3 +631,43 @@
 	--button-background:#0B5CFF;
   --button-border:1px solid #FFFFFF;
 }
+
+/* Personal blog (EN) */
+.button-personal-blog--en- {
+    --button-text: #ffffff;
+    --button-background: #f05923;
+}
+
+/* Schedule a meeting */
+.button-schedule-a-meeting {
+    --button-text: #ffffff;
+    --button-background: #00a99d;
+    --button-border: 1px solid #000000;
+}
+
+/* ArcGIS Blog */
+.button-arcgis-blog {
+    --button-text: #ffffff;
+    --button-background: #007ac2;
+}
+
+/* GIS StackExchange */
+.button-gis-stackexchange {
+    --button-text: #000000;
+    --button-background: #fffcf7;
+    --button-border: 1px solid #000000;
+}
+
+/* Sessionize */
+.button-sessionize {
+    --button-text: #000000;
+    --button-background: #ffffff;
+    --button-border: 1px solid #000000;
+}
+
+/* Koliseo */
+.button-koliseo {
+    --button-text: #000000;
+    --button-background: #ffffff;
+    --button-border: 1px solid #000000;
+}
