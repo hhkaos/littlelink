@@ -477,7 +477,7 @@
         return previousSpace > focusEnd ? previousSpace : end;
       }
 
-      function excerptText(value, focus) {
+      function excerptText(value, focus, focusIndexOverride) {
         var content = normalizeMentionText(value || "", {});
         var maxLength = 220;
 
@@ -486,7 +486,9 @@
         }
 
         var focusedText = cleanText(focus);
-        var focusIndex = focusedText ? content.indexOf(focusedText) : -1;
+        var focusIndex = Number.isInteger(focusIndexOverride)
+          ? focusIndexOverride
+          : focusedText ? content.indexOf(focusedText) : -1;
 
         if (focusIndex === -1) {
           var fallbackEnd = moveEndToWordBoundary(content, maxLength - 3, 0);
@@ -505,6 +507,29 @@
         var excerpt = content.slice(wordStart, wordEnd);
 
         return (wordStart > 0 ? "..." : "") + excerpt + (wordEnd < content.length ? "..." : "");
+      }
+
+      function getLinkContext(context, link) {
+        if (context === link) {
+          return {
+            text: cleanText(link.textContent),
+            focusIndex: 0
+          };
+        }
+
+        var marker = "__webmention_link_context__";
+
+        link.insertAdjacentText("beforebegin", marker);
+        link.insertAdjacentText("afterend", marker);
+
+        var markedText = cleanText(context.textContent);
+        var focusIndex = markedText.indexOf(marker);
+        var text = cleanText(markedText.replaceAll(marker, ""));
+
+        return {
+          text: text,
+          focusIndex: focusIndex
+        };
       }
 
       function findLinkContext(html, target, source) {
@@ -531,8 +556,9 @@
         var context = ["P", "LI", "BLOCKQUOTE"].indexOf(link.parentElement && link.parentElement.tagName) >= 0
           ? link.parentElement
           : link.closest("p, li, blockquote");
+        var linkContext = getLinkContext(context || link, link);
 
-        return excerptText((context || link).textContent, link.textContent);
+        return excerptText(linkContext.text, link.textContent, linkContext.focusIndex);
       }
 
       function getContent(mention) {
