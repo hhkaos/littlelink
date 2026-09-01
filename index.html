@@ -391,10 +391,23 @@
 
   <script>
     (function () {
-      var target = "https://links.rauljimenez.info/";
-      var endpoint = "https://webmention.io/api/mentions.jf2?target=" + encodeURIComponent(target) + "&per-page=10&sort-by=published&sort-dir=down";
+      var targets = [
+        "https://links.rauljimenez.info/",
+        "https://links.rauljimenez.info",
+        "https://www.links.rauljimenez.info/",
+        "https://www.links.rauljimenez.info"
+      ];
+      var params = new URLSearchParams({
+        "per-page": "10",
+        "sort-by": "published",
+        "sort-dir": "down"
+      });
       var section = document.getElementById("webmentions");
       var list = document.getElementById("webmentions-list");
+
+      targets.forEach(function (target) {
+        params.append("target[]", target);
+      });
 
       function cleanText(value) {
         return String(value || "").replace(/\s+/g, " ").trim();
@@ -495,7 +508,7 @@
         return;
       }
 
-      fetch(endpoint)
+      fetch("https://webmention.io/api/mentions.jf2?" + params.toString())
         .then(function (response) {
           if (!response.ok) {
             throw new Error("Could not load webmentions");
