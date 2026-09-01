@@ -404,9 +404,34 @@
         return cleanText(mention.author && mention.author.name) || cleanText(mention.name) || "Someone";
       }
 
+      function normalizeMentionText(value, mention) {
+        var text = cleanText(value).replace(/^\?{2,}\s*/, "");
+        var name = cleanText(mention.name).replace(/^\?{2,}\s*/, "");
+
+        if (name && text.indexOf(name) === 0) {
+          text = cleanText(text.slice(name.length));
+        }
+
+        ["Durante las últimas", "Over the last"].some(function (startText) {
+          var startIndex = text.indexOf(startText);
+          if (startIndex > 0) {
+            text = cleanText(text.slice(startIndex));
+            return true;
+          }
+
+          return false;
+        });
+
+        return text
+          .replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])(\d)/g, "$1 $2")
+          .replace(/(\d)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, "$1 $2")
+          .replace(/\s+/g, " ")
+          .trim();
+      }
+
       function getContent(mention) {
         var text = mention.content && (mention.content.text || mention.content.html);
-        return cleanText(text);
+        return normalizeMentionText(text, mention);
       }
 
       function formatDate(value) {
@@ -456,12 +481,12 @@
 
         item.appendChild(meta);
 
-        if (content) {
-          var body = document.createElement("p");
-          body.className = "webmentions__content p-content";
-          body.textContent = content.length > 220 ? content.slice(0, 217) + "..." : content;
-          item.appendChild(body);
-        }
+        var body = document.createElement("p");
+        body.className = "webmentions__content p-content";
+        body.textContent = content
+          ? (content.length > 220 ? content.slice(0, 217) + "..." : content)
+          : "Mentioned this page.";
+        item.appendChild(body);
 
         return item;
       }
