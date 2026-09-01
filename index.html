@@ -456,6 +456,27 @@
           .trim();
       }
 
+      function moveStartToWordBoundary(content, start, focusIndex) {
+        if (start === 0) {
+          return start;
+        }
+
+        var nextSpace = content.slice(start).search(/\s/);
+        var nextStart = nextSpace === -1 ? start : start + nextSpace + 1;
+
+        return nextStart < focusIndex ? nextStart : start;
+      }
+
+      function moveEndToWordBoundary(content, end, focusEnd) {
+        if (end === content.length) {
+          return end;
+        }
+
+        var previousSpace = content.slice(0, end).lastIndexOf(" ");
+
+        return previousSpace > focusEnd ? previousSpace : end;
+      }
+
       function excerptText(value, focus) {
         var content = normalizeMentionText(value || "", {});
         var maxLength = 220;
@@ -468,17 +489,22 @@
         var focusIndex = focusedText ? content.indexOf(focusedText) : -1;
 
         if (focusIndex === -1) {
-          return content.slice(0, maxLength - 3) + "...";
+          var fallbackEnd = moveEndToWordBoundary(content, maxLength - 3, 0);
+
+          return content.slice(0, fallbackEnd) + "...";
         }
 
         var maxContextLength = maxLength - 6;
         var roomAroundFocus = Math.max(maxContextLength - focusedText.length, 0);
+        var focusEnd = focusIndex + focusedText.length;
         var start = Math.max(0, focusIndex - Math.floor(roomAroundFocus / 2));
         var end = Math.min(content.length, start + maxContextLength);
         var adjustedStart = Math.max(0, end - maxContextLength);
-        var excerpt = content.slice(adjustedStart, end);
+        var wordStart = moveStartToWordBoundary(content, adjustedStart, focusIndex);
+        var wordEnd = moveEndToWordBoundary(content, end, focusEnd);
+        var excerpt = content.slice(wordStart, wordEnd);
 
-        return (adjustedStart > 0 ? "..." : "") + excerpt + (end < content.length ? "..." : "");
+        return (wordStart > 0 ? "..." : "") + excerpt + (wordEnd < content.length ? "..." : "");
       }
 
       function findLinkContext(html, target, source) {
@@ -519,6 +545,22 @@
           || excerptText(mention.content.html, mention.name);
       }
 
+      function getSourceUrl(url, content) {
+        var fragmentText = cleanText(content).replace(/^\.\.\./, "").replace(/\.\.\.$/, "");
+
+        if (!url || !fragmentText) {
+          return url;
+        }
+
+        try {
+          var sourceUrl = new URL(url);
+          sourceUrl.hash = ":~:text=" + encodeURIComponent(fragmentText);
+          return sourceUrl.toString();
+        } catch (error) {
+          return url;
+        }
+      }
+
       function formatDate(value) {
         if (!value) {
           return "";
@@ -550,7 +592,7 @@
 
         var link = document.createElement("a");
         link.className = "webmentions__author p-author h-card";
-        link.href = url || "#";
+        link.href = getSourceUrl(url, content) || "#";
         link.rel = "nofollow noopener";
         link.target = "_blank";
         link.textContent = author;
