@@ -95,6 +95,79 @@
       .container p.group{
         margin-bottom: .5rem;
       }
+
+      .webmentions {
+        display: none;
+        margin: 3rem 0 0;
+        text-align: left;
+      }
+
+      .webmentions[aria-hidden="false"] {
+        display: block;
+      }
+
+      .indieweb-badges {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: .35rem;
+        padding-top: .5rem;
+      }
+
+      .indieweb-badges img {
+        display: block;
+        image-rendering: pixelated;
+      }
+
+      .webmentions__title {
+        margin: 0 0 1rem;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+
+      .webmentions__list {
+        display: grid;
+        gap: .75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .webmentions__item {
+        padding: .85rem 1rem;
+        border: 1px solid rgba(0, 0, 0, .16);
+        border-radius: .5rem;
+        background: rgba(0, 0, 0, .025);
+      }
+
+      .webmentions__meta,
+      .webmentions__content {
+        margin: 0;
+        font-size: .9rem;
+        line-height: 1.45;
+      }
+
+      .webmentions__meta {
+        color: #555;
+      }
+
+      .webmentions__author {
+        font-weight: 700;
+      }
+
+      .webmentions__content {
+        margin-top: .4rem;
+      }
+
+      :root.theme-dark .webmentions__item {
+        border-color: rgba(255, 255, 255, .22);
+        background: rgba(255, 255, 255, .06);
+      }
+
+      :root.theme-dark .webmentions__meta {
+        color: #cfcfcf;
+      }
     </style>
 
   </head>
@@ -292,17 +365,139 @@
               <!-- <a class="button button-yt" href="#" target="_blank" rel="noopener" role="button"><img class="icon" aria-hidden="true" src="images/icons/youtube-music.svg" alt="YouTube Music Logo">Listen on YouTube Music</a> -->
 
       </div>
+
+      <section class="webmentions h-feed" id="webmentions" aria-hidden="true">
+        <h2 class="webmentions__title p-name">Mentions</h2>
+        <ol class="webmentions__list" id="webmentions-list"></ol>
+      </section>
         
       <!-- Feel free to add your own footer information, including updating `privacy.html` to reflect how your LittleLink fork is set up -->
       <footer>
         <!-- <a href="privacy.html">Privacy Policy</a> |  -->
         Powered by <a href="https://github.com/hhkaos/LittleLink" target="_blank" rel="noopener">LittleLink</a><br>
+        This site supports <a href="https://webmention.net/">Webmention</a>.
+        <div class="indieweb-badges">
+          <a href="https://indieweb.org/"><img src="/assets/badges/indieweb.svg" width="80" height="15" alt="IndieWeb" loading="lazy"></a>
+          <a href="http://microformats.org/"><img src="/assets/badges/microformats.svg" width="80" height="15" alt="Microformats" loading="lazy"></a>
+          <a href="https://indieweb.org/Webmention"><img src="/assets/badges/webmention.svg" width="80" height="15" alt="Webmention" loading="lazy"></a>
+          <a href="http://creativecommons.org/licenses/by/4.0/"><img src="/assets/badges/cc-commons.svg" width="80" height="15" alt="Creative Commons" loading="lazy"></a>
+        </div>
 <p>
         <a href="https://librecounter.org/referer/show" target="_blank" class="button"><img src="https://librecounter.org/counter.svg" referrerPolicy="unsafe-url" width=""/></a></p>
       </footer>
     
     </div>
   </div>
+
+  <script>
+    (function () {
+      var target = "https://links.rauljimenez.info/";
+      var endpoint = "https://webmention.io/api/mentions.jf2?target=" + encodeURIComponent(target) + "&per-page=10&sort-by=published&sort-dir=down";
+      var section = document.getElementById("webmentions");
+      var list = document.getElementById("webmentions-list");
+
+      function cleanText(value) {
+        return String(value || "").replace(/\s+/g, " ").trim();
+      }
+
+      function getAuthorName(mention) {
+        return cleanText(mention.author && mention.author.name) || cleanText(mention.name) || "Someone";
+      }
+
+      function getContent(mention) {
+        var text = mention.content && (mention.content.text || mention.content.html);
+        return cleanText(text);
+      }
+
+      function formatDate(value) {
+        if (!value) {
+          return "";
+        }
+
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return "";
+        }
+
+        return date.toLocaleDateString("en", {
+          year: "numeric",
+          month: "short",
+          day: "numeric"
+        });
+      }
+
+      function createMentionItem(mention) {
+        var item = document.createElement("li");
+        var url = mention.url || mention["wm-source"];
+        var author = getAuthorName(mention);
+        var content = getContent(mention);
+        var published = formatDate(mention.published || mention["wm-received"]);
+
+        item.className = "webmentions__item h-cite";
+
+        var meta = document.createElement("p");
+        meta.className = "webmentions__meta";
+
+        var link = document.createElement("a");
+        link.className = "webmentions__author p-author h-card";
+        link.href = url || "#";
+        link.rel = "nofollow noopener";
+        link.target = "_blank";
+        link.textContent = author;
+        meta.appendChild(link);
+
+        if (published) {
+          var time = document.createElement("time");
+          time.className = "dt-published";
+          time.dateTime = mention.published || mention["wm-received"];
+          time.textContent = " · " + published;
+          meta.appendChild(time);
+        }
+
+        item.appendChild(meta);
+
+        if (content) {
+          var body = document.createElement("p");
+          body.className = "webmentions__content p-content";
+          body.textContent = content.length > 220 ? content.slice(0, 217) + "..." : content;
+          item.appendChild(body);
+        }
+
+        return item;
+      }
+
+      if (!section || !list || !window.fetch) {
+        return;
+      }
+
+      fetch(endpoint)
+        .then(function (response) {
+          if (!response.ok) {
+            throw new Error("Could not load webmentions");
+          }
+
+          return response.json();
+        })
+        .then(function (data) {
+          var mentions = (data.children || []).filter(function (mention) {
+            return mention.url || mention["wm-source"];
+          });
+
+          if (!mentions.length) {
+            return;
+          }
+
+          mentions.forEach(function (mention) {
+            list.appendChild(createMentionItem(mention));
+          });
+
+          section.setAttribute("aria-hidden", "false");
+        })
+        .catch(function () {
+          section.setAttribute("aria-hidden", "true");
+        });
+    }());
+  </script>
 
 </body>
 
