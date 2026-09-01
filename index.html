@@ -98,7 +98,8 @@
 
       .webmentions {
         display: none;
-        margin: 3rem 0 0;
+        margin: 3rem auto 0;
+        max-width: 34rem;
         text-align: left;
       }
 
@@ -123,7 +124,7 @@
         margin: 0 0 1rem;
         text-align: center;
         font-size: 1rem;
-        font-weight: 700;
+        font-weight: 800;
       }
 
       .webmentions__list {
@@ -135,10 +136,11 @@
       }
 
       .webmentions__item {
-        padding: .85rem 1rem;
-        border: 1px solid rgba(0, 0, 0, .16);
+        padding: .9rem 1rem;
+        border: 1px solid rgba(0, 0, 0, .12);
         border-radius: .5rem;
-        background: rgba(0, 0, 0, .025);
+        background: rgba(255, 255, 255, .72);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, .05);
       }
 
       .webmentions__meta,
@@ -150,6 +152,7 @@
 
       .webmentions__meta {
         color: #555;
+        overflow-wrap: anywhere;
       }
 
       .webmentions__author {
@@ -158,15 +161,22 @@
 
       .webmentions__content {
         margin-top: .4rem;
+        color: #242424;
+        overflow-wrap: anywhere;
       }
 
       :root.theme-dark .webmentions__item {
-        border-color: rgba(255, 255, 255, .22);
+        border-color: rgba(255, 255, 255, .18);
         background: rgba(255, 255, 255, .06);
+        box-shadow: none;
       }
 
       :root.theme-dark .webmentions__meta {
         color: #cfcfcf;
+      }
+
+      :root.theme-dark .webmentions__content {
+        color: #f0f0f0;
       }
     </style>
 
@@ -417,6 +427,20 @@
         return cleanText(mention.author && mention.author.name) || cleanText(mention.name) || "Someone";
       }
 
+      function normalizeUrl(value, base) {
+        if (!value) {
+          return null;
+        }
+
+        try {
+          var url = new URL(value, base);
+          url.hash = "";
+          return url.toString().replace(/\/$/, "");
+        } catch (error) {
+          return null;
+        }
+      }
+
       function normalizeMentionText(value, mention) {
         var text = cleanText(value).replace(/^\?{2,}\s*/, "");
         var name = cleanText(mention.name).replace(/^\?{2,}\s*/, "");
@@ -425,16 +449,6 @@
           text = cleanText(text.slice(name.length));
         }
 
-        ["Durante las últimas", "Over the last"].some(function (startText) {
-          var startIndex = text.indexOf(startText);
-          if (startIndex > 0) {
-            text = cleanText(text.slice(startIndex));
-            return true;
-          }
-
-          return false;
-        });
-
         return text
           .replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])(\d)/g, "$1 $2")
           .replace(/(\d)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, "$1 $2")
@@ -442,9 +456,67 @@
           .trim();
       }
 
+      function excerptText(value, focus) {
+        var content = normalizeMentionText(value || "", {});
+        var maxLength = 220;
+
+        if (!content || content.length <= maxLength) {
+          return content;
+        }
+
+        var focusedText = cleanText(focus);
+        var focusIndex = focusedText ? content.indexOf(focusedText) : -1;
+
+        if (focusIndex === -1) {
+          return content.slice(0, maxLength - 3) + "...";
+        }
+
+        var maxContextLength = maxLength - 6;
+        var roomAroundFocus = Math.max(maxContextLength - focusedText.length, 0);
+        var start = Math.max(0, focusIndex - Math.floor(roomAroundFocus / 2));
+        var end = Math.min(content.length, start + maxContextLength);
+        var adjustedStart = Math.max(0, end - maxContextLength);
+        var excerpt = content.slice(adjustedStart, end);
+
+        return (adjustedStart > 0 ? "..." : "") + excerpt + (end < content.length ? "..." : "");
+      }
+
+      function findLinkContext(html, target, source) {
+        if (!html || !window.DOMParser) {
+          return "";
+        }
+
+        var normalizedTarget = normalizeUrl(target);
+        if (!normalizedTarget) {
+          return "";
+        }
+
+        var doc = new DOMParser().parseFromString(html, "text/html");
+        var links = Array.prototype.slice.call(doc.querySelectorAll("a[href]"));
+        var link = links.find(function (anchor) {
+          return normalizeUrl(anchor.getAttribute("href"), source) === normalizedTarget
+            || normalizeUrl(anchor.href) === normalizedTarget;
+        });
+
+        if (!link) {
+          return "";
+        }
+
+        var context = ["P", "LI", "BLOCKQUOTE"].indexOf(link.parentElement && link.parentElement.tagName) >= 0
+          ? link.parentElement
+          : link.closest("p, li, blockquote");
+
+        return excerptText((context || link).textContent, link.textContent);
+      }
+
       function getContent(mention) {
-        var text = mention.content && (mention.content.text || mention.content.html);
-        return normalizeMentionText(text, mention);
+        if (!mention.content) {
+          return "";
+        }
+
+        return findLinkContext(mention.content.html, mention["wm-target"], mention["wm-source"])
+          || excerptText(mention.content.text, mention.name)
+          || excerptText(mention.content.html, mention.name);
       }
 
       function formatDate(value) {
@@ -496,9 +568,7 @@
 
         var body = document.createElement("p");
         body.className = "webmentions__content p-content";
-        body.textContent = content
-          ? (content.length > 220 ? content.slice(0, 217) + "..." : content)
-          : "Mentioned this page.";
+        body.textContent = content || "Mentioned this page.";
         item.appendChild(body);
 
         return item;
