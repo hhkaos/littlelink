@@ -128,6 +128,43 @@
         font-weight: 800;
       }
 
+      .webmentions__facepile {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: .35rem;
+        margin: 0 0 1rem;
+        padding: 0;
+        list-style: none;
+      }
+
+      .webmentions__facepile-item {
+        display: block;
+      }
+
+      .webmentions__facepile-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        overflow: hidden;
+        border: 1px solid rgba(0, 0, 0, .12);
+        border-radius: 50%;
+        background: rgba(255, 255, 255, .72);
+        color: #242424;
+        font-size: .82rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .webmentions__facepile-photo {
+        display: block;
+        width: 32px;
+        height: 32px;
+        object-fit: cover;
+      }
+
       .webmentions__list {
         display: grid;
         gap: .75rem;
@@ -170,6 +207,12 @@
         border-color: rgba(255, 255, 255, .18);
         background: rgba(255, 255, 255, .06);
         box-shadow: none;
+      }
+
+      :root.theme-dark .webmentions__facepile-link {
+        border-color: rgba(255, 255, 255, .18);
+        background: rgba(255, 255, 255, .06);
+        color: #f0f0f0;
       }
 
       :root.theme-dark .webmentions__meta {
@@ -379,6 +422,7 @@
 
       <section class="webmentions h-feed" id="webmentions" aria-hidden="true">
         <h2 class="webmentions__title p-name">Mentions</h2>
+        <ol class="webmentions__facepile" id="webmentions-facepile" aria-label="Reactions"></ol>
         <ol class="webmentions__list" id="webmentions-list"></ol>
       </section>
         
@@ -400,280 +444,24 @@
     </div>
   </div>
 
-  <script>
-    (function () {
-      var targets = [
-        "https://links.rauljimenez.info/",
-        "https://links.rauljimenez.info",
-        "https://www.links.rauljimenez.info/",
-        "https://www.links.rauljimenez.info"
-      ];
-      var params = new URLSearchParams({
-        "per-page": "10",
-        "sort-by": "published",
-        "sort-dir": "down"
-      });
+  <script type="module">
+    import {renderWebmentions} from "./assets/js/webmentions.js";
+
+    renderWebmentions({
+      container: document.getElementById("webmentions"),
+      facepile: document.getElementById("webmentions-facepile"),
+      list: document.getElementById("webmentions-list"),
+      labels: {
+        fallbackContent: "Mentioned this page."
+      },
+      perPage: 20
+    }).catch(function () {
       var section = document.getElementById("webmentions");
-      var list = document.getElementById("webmentions-list");
 
-      targets.forEach(function (target) {
-        params.append("target[]", target);
-      });
-
-      function cleanText(value) {
-        return String(value || "").replace(/\s+/g, " ").trim();
+      if (section) {
+        section.setAttribute("aria-hidden", "true");
       }
-
-      function getAuthorName(mention) {
-        return cleanText(mention.author && mention.author.name) || cleanText(mention.name) || "Someone";
-      }
-
-      function normalizeUrl(value, base) {
-        if (!value) {
-          return null;
-        }
-
-        try {
-          var url = new URL(value, base);
-          url.hash = "";
-          return url.toString().replace(/\/$/, "");
-        } catch (error) {
-          return null;
-        }
-      }
-
-      function normalizeMentionText(value, mention) {
-        var text = cleanText(value).replace(/^\?{2,}\s*/, "");
-        var name = cleanText(mention.name).replace(/^\?{2,}\s*/, "");
-
-        if (name && text.indexOf(name) === 0) {
-          text = cleanText(text.slice(name.length));
-        }
-
-        return text
-          .replace(/([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])(\d)/g, "$1 $2")
-          .replace(/(\d)([A-Za-zÁÉÍÓÚÜÑáéíóúüñ])/g, "$1 $2")
-          .replace(/\s+/g, " ")
-          .trim();
-      }
-
-      function moveStartToWordBoundary(content, start, focusIndex) {
-        if (start === 0) {
-          return start;
-        }
-
-        var nextSpace = content.slice(start).search(/\s/);
-        var nextStart = nextSpace === -1 ? start : start + nextSpace + 1;
-
-        return nextStart < focusIndex ? nextStart : start;
-      }
-
-      function moveEndToWordBoundary(content, end, focusEnd) {
-        if (end === content.length) {
-          return end;
-        }
-
-        var previousSpace = content.slice(0, end).lastIndexOf(" ");
-
-        return previousSpace > focusEnd ? previousSpace : end;
-      }
-
-      function excerptText(value, focus, focusIndexOverride) {
-        var content = normalizeMentionText(value || "", {});
-        var maxLength = 220;
-
-        if (!content || content.length <= maxLength) {
-          return content;
-        }
-
-        var focusedText = cleanText(focus);
-        var focusIndex = Number.isInteger(focusIndexOverride)
-          ? focusIndexOverride
-          : focusedText ? content.indexOf(focusedText) : -1;
-
-        if (focusIndex === -1) {
-          var fallbackEnd = moveEndToWordBoundary(content, maxLength - 3, 0);
-
-          return content.slice(0, fallbackEnd) + "...";
-        }
-
-        var maxContextLength = maxLength - 6;
-        var roomAroundFocus = Math.max(maxContextLength - focusedText.length, 0);
-        var focusEnd = focusIndex + focusedText.length;
-        var start = Math.max(0, focusIndex - Math.floor(roomAroundFocus / 2));
-        var end = Math.min(content.length, start + maxContextLength);
-        var adjustedStart = Math.max(0, end - maxContextLength);
-        var wordStart = moveStartToWordBoundary(content, adjustedStart, focusIndex);
-        var wordEnd = moveEndToWordBoundary(content, end, focusEnd);
-        var excerpt = content.slice(wordStart, wordEnd);
-
-        return (wordStart > 0 ? "..." : "") + excerpt + (wordEnd < content.length ? "..." : "");
-      }
-
-      function getLinkContext(context, link) {
-        if (context === link) {
-          return {
-            text: cleanText(link.textContent),
-            focusIndex: 0
-          };
-        }
-
-        var marker = "__webmention_link_context__";
-
-        link.insertAdjacentText("beforebegin", marker);
-        link.insertAdjacentText("afterend", marker);
-
-        var markedText = cleanText(context.textContent);
-        var focusIndex = markedText.indexOf(marker);
-        var text = cleanText(markedText.replaceAll(marker, ""));
-
-        return {
-          text: text,
-          focusIndex: focusIndex
-        };
-      }
-
-      function findLinkContext(html, target, source) {
-        if (!html || !window.DOMParser) {
-          return "";
-        }
-
-        var normalizedTarget = normalizeUrl(target);
-        if (!normalizedTarget) {
-          return "";
-        }
-
-        var doc = new DOMParser().parseFromString(html, "text/html");
-        var links = Array.prototype.slice.call(doc.querySelectorAll("a[href]"));
-        var link = links.find(function (anchor) {
-          return normalizeUrl(anchor.getAttribute("href"), source) === normalizedTarget
-            || normalizeUrl(anchor.href) === normalizedTarget;
-        });
-
-        if (!link) {
-          return "";
-        }
-
-        var context = ["P", "LI", "BLOCKQUOTE"].indexOf(link.parentElement && link.parentElement.tagName) >= 0
-          ? link.parentElement
-          : link.closest("p, li, blockquote");
-        var linkContext = getLinkContext(context || link, link);
-
-        return excerptText(linkContext.text, link.textContent, linkContext.focusIndex);
-      }
-
-      function getContent(mention) {
-        if (!mention.content) {
-          return "";
-        }
-
-        return findLinkContext(mention.content.html, mention["wm-target"], mention["wm-source"])
-          || excerptText(mention.content.text, mention.name)
-          || excerptText(mention.content.html, mention.name);
-      }
-
-      function getSourceUrl(url, content) {
-        var fragmentText = cleanText(content).replace(/^\.\.\./, "").replace(/\.\.\.$/, "");
-
-        if (!url || !fragmentText) {
-          return url;
-        }
-
-        try {
-          var sourceUrl = new URL(url);
-          sourceUrl.hash = ":~:text=" + encodeURIComponent(fragmentText);
-          return sourceUrl.toString();
-        } catch (error) {
-          return url;
-        }
-      }
-
-      function formatDate(value) {
-        if (!value) {
-          return "";
-        }
-
-        var date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
-          return "";
-        }
-
-        return date.toLocaleDateString("en", {
-          year: "numeric",
-          month: "short",
-          day: "numeric"
-        });
-      }
-
-      function createMentionItem(mention) {
-        var item = document.createElement("li");
-        var url = mention.url || mention["wm-source"];
-        var author = getAuthorName(mention);
-        var content = getContent(mention);
-        var published = formatDate(mention.published || mention["wm-received"]);
-
-        item.className = "webmentions__item h-cite";
-
-        var meta = document.createElement("p");
-        meta.className = "webmentions__meta";
-
-        var link = document.createElement("a");
-        link.className = "webmentions__author p-author h-card";
-        link.href = getSourceUrl(url, content) || "#";
-        link.rel = "nofollow noopener";
-        link.target = "_blank";
-        link.textContent = author;
-        meta.appendChild(link);
-
-        if (published) {
-          var time = document.createElement("time");
-          time.className = "dt-published";
-          time.dateTime = mention.published || mention["wm-received"];
-          time.textContent = " · " + published;
-          meta.appendChild(time);
-        }
-
-        item.appendChild(meta);
-
-        var body = document.createElement("p");
-        body.className = "webmentions__content p-content";
-        body.textContent = content || "Mentioned this page.";
-        item.appendChild(body);
-
-        return item;
-      }
-
-      if (!section || !list || !window.fetch) {
-        return;
-      }
-
-      fetch("https://webmention.io/api/mentions.jf2?" + params.toString())
-        .then(function (response) {
-          if (!response.ok) {
-            throw new Error("Could not load webmentions");
-          }
-
-          return response.json();
-        })
-        .then(function (data) {
-          var mentions = (data.children || []).filter(function (mention) {
-            return mention.url || mention["wm-source"];
-          });
-
-          if (!mentions.length) {
-            return;
-          }
-
-          mentions.forEach(function (mention) {
-            list.appendChild(createMentionItem(mention));
-          });
-
-          section.setAttribute("aria-hidden", "false");
-        })
-        .catch(function () {
-          section.setAttribute("aria-hidden", "true");
-        });
-    }());
+    });
   </script>
 
 </body>
