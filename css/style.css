@@ -95,11 +95,11 @@
 :root {
   font-size:16px;           /* Using a 1.25 modular scale for typography */
   --scale-0:1rem;           /* 16px */
-  --scale-1:1.25rem;        /* 20px */
-  --scale-2:1.563rem;       /* 25px */
-  --scale-3:1.953rem;       /* 31px */
-  --scale-4:2.441rem;       /* 39px */
-  --scale-5:3.052rem;       /* 49px */
+  --scale-1:1.125rem;       /* 18px */
+  --scale-2:1.25rem;        /* 20px */
+  --scale-3:1.5rem;         /* 24px */
+  --scale-4:2rem;           /* 32px */
+  --scale-5:2.5rem;         /* 40px */
   
   /* Spacing units */
   --spacing-xs:0.5rem;      /* 8px */
@@ -125,10 +125,10 @@
 
 /* Typography Scale */
 h1 {
-	margin:0 0 var(--spacing-m) 0;
-	font-size:var(--scale-5);           /* ~49px */
+	margin:0 0 var(--spacing-s) 0;
+	font-size:var(--scale-5);           /* 40px */
   	font-weight:800;
-	line-height:1.1;
+	line-height:1.12;
 	letter-spacing:0;
 	word-wrap:break-word;
 	overflow-wrap:break-word;
@@ -151,13 +151,30 @@ h1 .p-name.u-url:focus-visible {
 	outline-offset:0.25rem;
 }
 body {
-	font-size:var(--scale-1);           /* 20px */
-  	line-height:1.6;
+	font-size:var(--scale-1);           /* 18px */
+  	line-height:1.55;
 }
 .container p {
 	margin:0 0 var(--spacing-xl) 0;
 	font-size:var(--scale-1);
 	line-height:1.6;
+}
+
+.p-note {
+	max-width:34rem;
+	margin-left:auto;
+	margin-right:auto;
+	color:#333333;
+	font-size:1.0625rem;
+	line-height:1.65;
+}
+
+.container .button-stack p.group {
+	margin-top:var(--spacing-s);
+	color:#555555;
+	font-size:0.9375rem;
+	font-weight:700;
+	line-height:1.35;
 }
 
 /* Container spacing */
@@ -182,6 +199,10 @@ body {
 }
 .container p {
 	font-size:var(--scale-0);
+}
+.p-note {
+	font-size:var(--scale-0);
+	line-height:1.6;
 }
 .avatar {
 	margin-bottom:var(--spacing-m);
@@ -276,6 +297,10 @@ a:hover {
 	background-color:#121212;
 	color:#ffffff;
 }
+:root.theme-dark .p-note,
+:root.theme-dark .container .button-stack p.group {
+	color:#d6d6d6;
+}
 :root.theme-dark a:not(.button) {
 	color:#4899F7;
 }
@@ -297,6 +322,10 @@ a:hover {
 	:root.theme-auto body {
 	background-color:#121212;
 	color:#ffffff;
+}
+:root.theme-auto .p-note,
+:root.theme-auto .container .button-stack p.group {
+	color:#d6d6d6;
 }
 :root.theme-auto :focus-visible {
     outline: 2px solid #4899F7;
