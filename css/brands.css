@@ -660,8 +660,27 @@
 
 /* OpenStreetMap */
 .button-openstreetmap {
+    --button-text: #2d3335;
+    --button-background: #ffffff;
+    --button-border: 1px solid #7ebc6f;
+}
+
+/* Mapillary */
+.button-mapillary {
     --button-text: #ffffff;
-    --button-background: #7ebc6f;
+    --button-background: #05cb63;
+}
+
+/* Wikipedia */
+.button-wikipedia {
+    --button-text: #ffffff;
+    --button-background: #202122;
+}
+
+/* Wikimedia Commons */
+.button-wikimedia-commons {
+    --button-text: #ffffff;
+    --button-background: #006699;
 }
 
 /* Sessionize */
