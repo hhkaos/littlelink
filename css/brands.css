@@ -658,6 +658,12 @@
     --button-border: 1px solid #000000;
 }
 
+/* OpenStreetMap */
+.button-openstreetmap {
+    --button-text: #ffffff;
+    --button-background: #7ebc6f;
+}
+
 /* Sessionize */
 .button-sessionize {
     --button-text: #000000;
