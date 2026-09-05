@@ -72,11 +72,15 @@ jobs:
 
           # This repo is a fork, so --repo and --base must be explicit or the PR
           # would be opened against sethcottle/littlelink.
+          # Built with printf rather than inline: a multi-line string here would
+          # break out of this block scalar.
+          body="$(printf '%s\n\n%s\n' \
+            "Pinned CDN version of \`$PACKAGE\` bumped from \`$CURRENT\` to \`$LATEST\`." \
+            "Changelog: https://github.com/hhkaos/webmentions-widget/blob/main/CHANGELOG.md")"
+
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
             --head "$branch" \
             --title "chore: bump webmentions widget to $LATEST" \
-            --body "Pinned CDN version of \`$PACKAGE\` bumped from \`$CURRENT\` to \`$LATEST\`.
-
-Changelog: https://github.com/hhkaos/webmentions-widget/blob/main/CHANGELOG.md"
+            --body "$body"
