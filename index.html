@@ -201,6 +201,13 @@
         object-fit: cover;
       }
 
+      .webmentions__updated {
+        margin: .75rem 0 0;
+        font-size: .78rem;
+        opacity: .7;
+        text-align: center;
+      }
+
       .webmentions__list {
         display: grid;
         gap: .75rem;
@@ -472,8 +479,9 @@
 
       <section class="webmentions h-feed" id="webmentions" aria-hidden="true">
         <h2 class="webmentions__title p-name">Mentions</h2>
-        <ol class="webmentions__facepile" id="webmentions-facepile" aria-label="Reactions"></ol>
+        <ol class="webmentions__facepile" id="webmentions-facepile" aria-label="Reactions" hidden></ol>
         <ol class="webmentions__list" id="webmentions-list"></ol>
+        <p class="webmentions__updated" id="webmentions-updated" hidden></p>
       </section>
         
       <!-- Feel free to add your own footer information, including updating `privacy.html` to reflect how your LittleLink fork is set up -->
@@ -494,24 +502,52 @@
     </div>
   </div>
 
+  <!-- Shared widget: https://github.com/hhkaos/webmentions-widget
+       Vendored copy of @hhkaos/webmentions-widget@0.4.0, kept current by
+       .github/workflows/bump-webmentions-widget.yml. -->
   <script type="module">
-    import {renderWebmentions} from "./assets/js/webmentions.js";
+    import {
+      filterMentionsByTargets,
+      getCanonicalTargetsFromDocument,
+      getSnapshotMentions,
+      groupWebmentions
+    } from "./assets/js/webmentions/core.js";
+    import {renderGroups} from "./assets/js/webmentions/render.js";
 
-    renderWebmentions({
-      container: document.getElementById("webmentions"),
-      facepile: document.getElementById("webmentions-facepile"),
-      list: document.getElementById("webmentions-list"),
-      labels: {
-        fallbackContent: "Mentioned this page."
-      },
-      perPage: 20
-    }).catch(function () {
-      var section = document.getElementById("webmentions");
+    // Mentions are baked into a snapshot refreshed daily by
+    // .github/workflows/webmentions-snapshot.yml, so a visit costs
+    // webmention.io nothing and the section survives their outages.
+    fetch("./assets/data/webmentions.json")
+      .then(function (response) {
+        return response.ok ? response.json() : null;
+      })
+      .then(function (snapshot) {
+        if (!snapshot) {
+          return;
+        }
 
-      if (section) {
-        section.setAttribute("aria-hidden", "true");
-      }
-    });
+        var mentions = filterMentionsByTargets(
+          getSnapshotMentions(snapshot),
+          getCanonicalTargetsFromDocument()
+        );
+
+        renderGroups(groupWebmentions(mentions), {
+          container: document.getElementById("webmentions"),
+          facepile: document.getElementById("webmentions-facepile"),
+          list: document.getElementById("webmentions-list"),
+          updated: document.getElementById("webmentions-updated"),
+          updatedAt: snapshot.generatedAt,
+          labels: {
+            "in-reply-to": "replied",
+            "mention-of": "mentioned this",
+            fallbackContent: "Mentioned this page.",
+            updated: "Updated"
+          }
+        });
+      })
+      .catch(function () {
+        /* leave the section hidden */
+      });
   </script>
 
 </body>

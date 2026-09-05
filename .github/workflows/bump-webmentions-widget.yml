@@ -1,8 +1,8 @@
 name: Bump webmentions widget
 
-# This site loads @hhkaos/webmentions-widget from a pinned CDN URL rather than
-# from package.json, so Dependabot cannot see it. This checks the registry and
-# opens a PR when a newer version ships.
+# The widget is vendored (assets/js/webmentions/) rather than loaded from a CDN,
+# so the page has no third-party runtime dependency. That also means Dependabot
+# cannot see it: this checks the registry and opens a PR with the new files.
 #
 # Source of the widget: https://github.com/hhkaos/webmentions-widget
 on:
@@ -17,12 +17,17 @@ permissions:
 env:
   PACKAGE: '@hhkaos/webmentions-widget'
   TARGET_FILE: index.html
+  VENDOR_DIR: assets/js/webmentions
 
 jobs:
   bump:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
       - name: Resolve current and latest version
         id: versions
@@ -31,23 +36,30 @@ jobs:
             | head -1 | sed 's/.*@//')"
 
           if [ -z "$current" ]; then
-            echo "No pinned $PACKAGE version found in $TARGET_FILE — nothing to do."
+            echo "No vendored $PACKAGE version found in $TARGET_FILE — nothing to do."
             echo "skip=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          latest="$(curl -fsSL "https://registry.npmjs.org/$PACKAGE/latest" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+          latest="$(npm view "$PACKAGE" version)"
 
           echo "current=$current" >> "$GITHUB_OUTPUT"
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
           echo "skip=$([ "$current" = "$latest" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-          echo "Pinned $current, latest $latest"
+          echo "Vendored $current, latest $latest"
 
-      - name: Rewrite the pinned version
+      - name: Re-vendor and rewrite the version marker
         if: steps.versions.outputs.skip == 'false'
+        env:
+          CURRENT: ${{ steps.versions.outputs.current }}
+          LATEST: ${{ steps.versions.outputs.latest }}
         run: |
-          sed -i "s|$PACKAGE@${{ steps.versions.outputs.current }}|$PACKAGE@${{ steps.versions.outputs.latest }}|g" "$TARGET_FILE"
+          tarball="$(npm pack "$PACKAGE@$LATEST" --silent)"
+          tar -xzf "$tarball"
+          cp package/src/core.js package/src/render.js "$VENDOR_DIR/"
+          rm -rf package "$tarball"
+
+          sed -i "s|$PACKAGE@$CURRENT|$PACKAGE@$LATEST|g" "$TARGET_FILE"
           git diff --stat
 
       - name: Open pull request
@@ -70,14 +82,14 @@ jobs:
           git commit -am "chore: bump webmentions widget to $LATEST"
           git push origin "$branch"
 
-          # This repo is a fork, so --repo and --base must be explicit or the PR
-          # would be opened against sethcottle/littlelink.
           # Built with printf rather than inline: a multi-line string here would
           # break out of this block scalar.
           body="$(printf '%s\n\n%s\n' \
-            "Pinned CDN version of \`$PACKAGE\` bumped from \`$CURRENT\` to \`$LATEST\`." \
+            "Vendored \`$PACKAGE\` bumped from \`$CURRENT\` to \`$LATEST\`." \
             "Changelog: https://github.com/hhkaos/webmentions-widget/blob/main/CHANGELOG.md")"
 
+          # This repo is a fork, so --repo and --base must be explicit or the PR
+          # would be opened against sethcottle/littlelink.
           gh pr create \
             --repo "$GITHUB_REPOSITORY" \
             --base main \

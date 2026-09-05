@@ -1,0 +1,66 @@
+name: Refresh webmentions snapshot
+
+# Mentions are served from a committed snapshot rather than fetched by every
+# visitor: one request a day to webmention.io instead of one per page view, the
+# section survives their outages, and the committed JSON is a durable copy if
+# the service ever disappears.
+on:
+  schedule:
+    - cron: '47 5 * * *'
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Refetch everything instead of only what is new
+        type: boolean
+        default: false
+  repository_dispatch:
+    types: [webmention]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: webmentions-snapshot
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # This repo has no package.json; the vendored widget version in
+      # index.html is the source of truth for which release to run.
+      - name: Resolve vendored widget version
+        id: widget
+        run: |
+          version="$(grep -oE '@hhkaos/webmentions-widget@[0-9]+\.[0-9]+\.[0-9]+' index.html \
+            | head -1 | sed 's/.*@//')"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Fetch mentions
+        env:
+          WEBMENTION_IO_TOKEN: ${{ secrets.WEBMENTION_IO_TOKEN }}
+        run: |
+          npx -y -p "@hhkaos/webmentions-widget@${{ steps.widget.outputs.version }}" \
+            webmentions-snapshot \
+            --domain links.rauljimenez.info \
+            --out assets/data/webmentions.json \
+            ${{ inputs.full && '--full' || '' }}
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- assets/data/webmentions.json; then
+            echo "No change."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add assets/data/webmentions.json
+          git commit -m "chore: refresh webmentions snapshot"
+          git push
