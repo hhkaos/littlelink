@@ -1,0 +1,82 @@
+name: Bump webmentions widget
+
+# This site loads @hhkaos/webmentions-widget from a pinned CDN URL rather than
+# from package.json, so Dependabot cannot see it. This checks the registry and
+# opens a PR when a newer version ships.
+#
+# Source of the widget: https://github.com/hhkaos/webmentions-widget
+on:
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  PACKAGE: '@hhkaos/webmentions-widget'
+  TARGET_FILE: index.html
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve current and latest version
+        id: versions
+        run: |
+          current="$(grep -oE '@hhkaos/webmentions-widget@[0-9]+\.[0-9]+\.[0-9]+' "$TARGET_FILE" \
+            | head -1 | sed 's/.*@//')"
+
+          if [ -z "$current" ]; then
+            echo "No pinned $PACKAGE version found in $TARGET_FILE — nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          latest="$(curl -fsSL "https://registry.npmjs.org/$PACKAGE/latest" \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["version"])')"
+
+          echo "current=$current" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          echo "skip=$([ "$current" = "$latest" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "Pinned $current, latest $latest"
+
+      - name: Rewrite the pinned version
+        if: steps.versions.outputs.skip == 'false'
+        run: |
+          sed -i "s|$PACKAGE@${{ steps.versions.outputs.current }}|$PACKAGE@${{ steps.versions.outputs.latest }}|g" "$TARGET_FILE"
+          git diff --stat
+
+      - name: Open pull request
+        if: steps.versions.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT: ${{ steps.versions.outputs.current }}
+          LATEST: ${{ steps.versions.outputs.latest }}
+        run: |
+          branch="bump/webmentions-widget-$LATEST"
+
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "Branch $branch already exists — a PR is presumably open."
+            exit 0
+          fi
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git commit -am "chore: bump webmentions widget to $LATEST"
+          git push origin "$branch"
+
+          # This repo is a fork, so --repo and --base must be explicit or the PR
+          # would be opened against sethcottle/littlelink.
+          gh pr create \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head "$branch" \
+            --title "chore: bump webmentions widget to $LATEST" \
+            --body "Pinned CDN version of \`$PACKAGE\` bumped from \`$CURRENT\` to \`$LATEST\`.
+
+Changelog: https://github.com/hhkaos/webmentions-widget/blob/main/CHANGELOG.md"
