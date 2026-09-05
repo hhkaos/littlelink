@@ -201,7 +201,32 @@
         object-fit: cover;
       }
 
-      .webmentions__updated {
+      /* An h-card without a photo still gets a face-shaped element, so the pile
+         and the list keep one rhythm. The hue comes from the widget, derived
+         from the author's name, so two initials read as two people. */
+      .webmentions__facepile-photo.is-initial,
+      .webmentions__photo.is-initial {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: hsl(var(--webmention-avatar-hue, 220) 45% 90%);
+        color: hsl(var(--webmention-avatar-hue, 220) 45% 28%);
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .webmentions__photo {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        /* Nudge down to sit on the meta line's optical centre, not its box. */
+        margin-top: .1rem;
+        border-radius: 50%;
+        object-fit: cover;
+        font-size: .85rem;
+      }
+
+      .container .webmentions__updated {
         margin: .75rem 0 0;
         font-size: .78rem;
         opacity: .7;
@@ -216,18 +241,29 @@
         list-style: none;
       }
 
+      /* A 24px blur under an 80px-tall card reads as floating debris; the
+         border already separates it from the page. */
       .webmentions__item {
-        padding: .9rem 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: .65rem;
+        padding: .8rem .9rem;
         border: 1px solid rgba(0, 0, 0, .12);
         border-radius: .5rem;
         background: rgba(255, 255, 255, .72);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, .05);
       }
 
-      .webmentions__meta,
-      .webmentions__content {
+      .webmentions__body {
+        min-width: 0;
+      }
+
+      /* `.container p` in style.css sets a 2rem bottom margin and outranks a
+         lone class selector, which is what pushed these lines apart. Same
+         weight, so the card keeps its own rhythm. */
+      .container .webmentions__meta,
+      .container .webmentions__content {
         margin: 0;
-        font-size: .9rem;
+        font-size: .88rem;
         line-height: 1.45;
       }
 
@@ -236,20 +272,66 @@
         overflow-wrap: anywhere;
       }
 
-      .webmentions__author {
+      /* The name is the row's anchor, not a call to action: an underlined
+         visited-purple link next to grey meta text fights the card. */
+      .container .webmentions__author {
+        color: #242424;
         font-weight: 700;
+        text-decoration: none;
       }
 
-      .webmentions__content {
-        margin-top: .4rem;
+      .container .webmentions__author:hover,
+      .container .webmentions__author:focus-visible {
+        text-decoration: underline;
+      }
+
+      .container .webmentions__content {
+        margin-top: .3rem;
+        font-size: .92rem;
         color: #242424;
         overflow-wrap: anywhere;
+      }
+
+      /* The page ships `class="theme-auto"`, so `.theme-dark` alone never
+         matches: without the media-query twin the card stayed light-on-dark
+         for anyone whose system prefers dark. */
+      @media (prefers-color-scheme: dark) {
+        :root.theme-auto .webmentions__item {
+          border-color: rgba(255, 255, 255, .18);
+          background: rgba(255, 255, 255, .06);
+        }
+
+        :root.theme-auto .webmentions__facepile-photo.is-initial,
+        :root.theme-auto .webmentions__photo.is-initial {
+          background: hsl(var(--webmention-avatar-hue, 220) 30% 28%);
+          color: hsl(var(--webmention-avatar-hue, 220) 45% 88%);
+        }
+
+        :root.theme-auto .webmentions__facepile-link {
+          border-color: rgba(255, 255, 255, .18);
+          background: rgba(255, 255, 255, .06);
+          color: #f0f0f0;
+        }
+
+        :root.theme-auto .webmentions__meta {
+          color: #cfcfcf;
+        }
+
+        :root.theme-auto .webmentions__content,
+        :root.theme-auto .container .webmentions__author {
+          color: #f0f0f0;
+        }
       }
 
       :root.theme-dark .webmentions__item {
         border-color: rgba(255, 255, 255, .18);
         background: rgba(255, 255, 255, .06);
-        box-shadow: none;
+      }
+
+      :root.theme-dark .webmentions__facepile-photo.is-initial,
+      :root.theme-dark .webmentions__photo.is-initial {
+        background: hsl(var(--webmention-avatar-hue, 220) 30% 28%);
+        color: hsl(var(--webmention-avatar-hue, 220) 45% 88%);
       }
 
       :root.theme-dark .webmentions__facepile-link {
@@ -262,7 +344,8 @@
         color: #cfcfcf;
       }
 
-      :root.theme-dark .webmentions__content {
+      :root.theme-dark .webmentions__content,
+      :root.theme-dark .container .webmentions__author {
         color: #f0f0f0;
       }
     </style>
