@@ -13,6 +13,12 @@ on:
         description: Refetch everything instead of only what is new
         type: boolean
         default: false
+      domain:
+        description: >-
+          Domain to query. Must be one registered on the webmention.io account,
+          which is not necessarily this site's hostname.
+        type: string
+        default: ''
   repository_dispatch:
     types: [webmention]
 
@@ -45,10 +51,11 @@ jobs:
       - name: Fetch mentions
         env:
           WEBMENTION_IO_TOKEN: ${{ secrets.WEBMENTION_IO_TOKEN }}
+          DOMAIN: ${{ inputs.domain || 'links.rauljimenez.info' }}
         run: |
           npx -y -p "@hhkaos/webmentions-widget@${{ steps.widget.outputs.version }}" \
             webmentions-snapshot \
-            --domain links.rauljimenez.info \
+            --domain "$DOMAIN" \
             --out assets/data/webmentions.json \
             ${{ inputs.full && '--full' || '' }}
 
